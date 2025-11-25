@@ -4,28 +4,31 @@
 #include <condition_variable>
 #include <chrono>
 #include <memory>
+#include <locale.h>
+
+using namespace std;
 
 class Monitor {
 private:
-    std::mutex mtx;
-    std::condition_variable cv;
+    mutex mtx;
+    condition_variable cv;
     bool event_ready = false;
-    std::shared_ptr<std::string> event_data; // Пример несериализуемых данных
+    shared_ptr<string> event_data; // Пример несериализуемых данных
 
 public:
     // Функция поставщика
     void provide() {
         for (int i = 1; i <= 5; ++i) { // 5 событий для примера
             // Задержка 1 секунда
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            this_thread::sleep_for(chrono::seconds(1));
 
             // Создаем "несериализуемые" данные
-            event_data = std::make_shared<std::string>("Event data " + std::to_string(i));
+            event_data = make_shared<string>("Event data " + to_string(i));
 
             {
-                std::lock_guard<std::mutex> lock(mtx);
+                lock_guard<mutex> lock(mtx);
                 event_ready = true;
-                std::cout << "Поставщик: отправил событие '" << *event_data << "'" << std::endl;
+                cout << "Поставщик: отправил событие '" << *event_data << "'" << endl;
             }
 
             // Уведомляем потребителя
@@ -36,13 +39,13 @@ public:
     // Функция потребителя
     void consume() {
         for (int i = 1; i <= 5; ++i) {
-            std::unique_lock<std::mutex> lock(mtx);
+            unique_lock<mutex> lock(mtx);
 
             // Ожидание события с временным освобождением мьютекса
             cv.wait(lock, [this]() { return event_ready; });
 
             // Обработка события
-            std::cout << "Потребитель: получил событие '" << *event_data << "'" << std::endl;
+            cout << "Потребитель: получил событие '" << *event_data << "'" << endl;
             event_ready = false;
 
             // Мьютекс автоматически освобождается при выходе из scope
@@ -51,13 +54,13 @@ public:
 };
 
 int main() {
+    setlocale(LC_ALL, "Russian");
+
     Monitor monitor;
 
-
-
     // Запускаем потоки
-    std::thread producer_thread(&Monitor::provide, &monitor);
-    std::thread consumer_thread(&Monitor::consume, &monitor);
+    thread producer_thread(&Monitor::provide, &monitor);
+    thread consumer_thread(&Monitor::consume, &monitor);
 
     // Ждем завершения потоков
     producer_thread.join();
